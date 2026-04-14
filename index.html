@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PROFILE SELECTION</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
+      background: #e0e5ec;
+      color: #5a6a7e;
+    }
+
+    /* ニューモフィズム */
+    .neu       { background: #e0e5ec; border-radius: 14px; box-shadow:  6px 6px 12px #b8bec7, -6px -6px 12px #fff; }
+    .neu-inset { background: #e0e5ec; border-radius: 10px; box-shadow: inset 3px 3px 6px #b8bec7, inset -3px -3px 6px #fff; }
+
+    .app { display: flex; height: 100vh; padding: 12px; gap: 12px; }
+
+    /* ===== 左: プロフィール固定 ===== */
+    .profile-col {
+      flex: 0 0 260px; display: flex; flex-direction: column; gap: 0;
+      padding: 28px 24px; overflow-y: auto;
+    }
+    .profile-avatar {
+      width: 100px; height: 100px; border-radius: 50%;
+      box-shadow: 6px 6px 12px #b8bec7, -6px -6px 12px #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 44px; background: #e0e5ec; margin-bottom: 24px;
+    }
+    .profile-name {
+      font-size: 26px; font-weight: 900; color: #3a4a5e;
+      letter-spacing: 1px; line-height: 1.2;
+    }
+    .profile-role {
+      font-size: 13px; color: #8a9ab0; margin-top: 6px; line-height: 1.5;
+    }
+    .profile-section {
+      margin-top: 24px;
+    }
+    .profile-section h3 {
+      font-size: 12px; font-weight: 700; color: #6b7b8d;
+      letter-spacing: 2px; text-transform: uppercase;
+      margin-bottom: 10px; padding-bottom: 6px;
+      border-bottom: 1px solid #d0d5dc;
+    }
+    .profile-section li {
+      list-style: none; font-size: 13px; color: #5a6a7e;
+      padding: 4px 0; padding-left: 12px; position: relative; line-height: 1.6;
+    }
+    .profile-section li::before {
+      content: '・'; position: absolute; left: 0; color: #8a9ab0;
+    }
+    .profile-divider {
+      width: 40px; height: 3px; border-radius: 2px; margin: 20px 0;
+      box-shadow: inset 2px 2px 3px #b8bec7, inset -2px -2px 3px #fff;
+    }
+
+    /* ===== 右: メインエリア ===== */
+    .main-col {
+      flex: 1; display: flex; flex-direction: column; gap: 12px; min-height: 0;
+    }
+
+    /* --- 上部: プレビュー --- */
+    .preview-row {
+      flex: 0 0 auto; display: flex; gap: 12px;
+    }
+
+    /* ジャケットプレビュー */
+    .jacket-area {
+      flex: 1; padding: 14px;
+      display: flex; align-items: stretch; gap: 16px;
+      overflow: hidden;
+    }
+    .jacket-frame {
+      width: 200px; aspect-ratio: 16/9; border-radius: 12px; position: relative; flex-shrink: 0;
+      box-shadow: inset 4px 4px 10px #b8bec7, inset -4px -4px 10px #fff;
+      background: linear-gradient(145deg, #d3d9e2, #eaeff5);
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    .jacket-emoji { font-size: 48px; opacity: 0.5; transition: all 0.3s; }
+    .jacket-badge {
+      position: absolute; top: 8px; right: 8px;
+      padding: 3px 8px; border-radius: 4px; font-size: 9px; font-weight: 800;
+      box-shadow: 2px 2px 4px #b8bec7, -2px -2px 4px #fff; background: #e0e5ec; color: #6b7b8d;
+    }
+    .jacket-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+    .jacket-info h2 {
+      font-size: 16px; font-weight: 900; color: #3a4a5e; letter-spacing: 0.5px;
+      line-height: 1.4;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .jacket-info .sub { font-size: 11px; color: #8a9ab0; margin-top: 6px; }
+    .jacket-stats { display: flex; gap: 8px; margin-top: 10px; }
+    .jacket-stat {
+      text-align: center; padding: 5px 10px; border-radius: 8px;
+      box-shadow: 3px 3px 6px #b8bec7, -3px -3px 6px #fff;
+    }
+    .jacket-stat .label { font-size: 8px; color: #8a9ab0; letter-spacing: 2px; text-transform: uppercase; }
+    .jacket-stat .val   { font-size: 13px; font-weight: 800; color: #4a5a6e; margin-top: 2px; }
+
+
+    /* --- 下部: 操作 + ホイール --- */
+    .list-area {
+      flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0;
+    }
+    .diff-tabs { display: flex; gap: 6px; flex-shrink: 0; }
+    .diff-tab {
+      flex: 1; padding: 7px 0; text-align: center; border: none; cursor: pointer;
+      font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #8a9ab0;
+      background: #e0e5ec; border-radius: 8px; box-shadow: 3px 3px 6px #b8bec7, -3px -3px 6px #fff;
+      transition: box-shadow 0.15s, color 0.15s;
+    }
+    .diff-tab:hover { box-shadow: 2px 2px 4px #b8bec7, -2px -2px 4px #fff; }
+    .diff-tab.active { box-shadow: inset 3px 3px 6px #b8bec7, inset -3px -3px 6px #fff; color: #4a5a6e; }
+
+    .arrow-btn {
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border: none; cursor: pointer;
+      background: #e0e5ec; border-radius: 10px;
+      box-shadow: 3px 3px 6px #b8bec7, -3px -3px 6px #fff;
+      font-size: 16px; color: #8a9ab0; transition: box-shadow 0.12s, color 0.12s;
+      user-select: none; align-self: center;
+    }
+    .arrow-btn:hover { color: #4a5a6e; box-shadow: 2px 2px 4px #b8bec7, -2px -2px 4px #fff; }
+    .arrow-btn:active { box-shadow: inset 3px 3px 6px #b8bec7, inset -3px -3px 6px #fff; }
+
+    .wheel-container {
+      flex: 1; min-height: 0; position: relative; overflow: hidden;
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+      mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+    }
+    .wheel { position: absolute; width: 100%; height: 100%; left: 0; top: 0; }
+
+    .wheel-item {
+      position: absolute;
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 10px; border-radius: 10px;
+      background: #e0e5ec; cursor: pointer;
+      box-shadow: 3px 3px 6px #b8bec7, -3px -3px 6px #fff;
+      transition: box-shadow 0.3s, padding 0.3s, border-radius 0.3s;
+      transform-origin: right center;
+    }
+    .wheel-item.selected {
+      padding: 16px 18px;
+      border-radius: 14px;
+      box-shadow: inset 5px 5px 10px #b8bec7, inset -5px -5px 10px #fff;
+    }
+
+    .song-thumb {
+      width: 36px; height: 36px; border-radius: 6px; flex-shrink: 0;
+      box-shadow: 2px 2px 4px #b8bec7, -2px -2px 4px #fff;
+      display: flex; align-items: center; justify-content: center; font-size: 14px;
+      background: linear-gradient(145deg, #d5dbe3, #eaeff5);
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+    .wheel-item.selected .song-thumb {
+      width: 64px; height: 64px; font-size: 26px; border-radius: 10px;
+      box-shadow: inset 3px 3px 6px #b8bec7, inset -3px -3px 6px #fff;
+    }
+    .song-body { flex: 1; min-width: 0; }
+    .song-body .s-title {
+      font-size: 11px; font-weight: 700; color: #6b7b8d;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      transition: all 0.3s;
+    }
+    .wheel-item.selected .song-body .s-title { font-size: 15px; font-weight: 800; color: #3a4a5e; }
+    .song-body .s-artist { font-size: 9px; color: #a0aab8; margin-top: 1px; transition: all 0.3s; }
+    .wheel-item.selected .song-body .s-artist { font-size: 11px; color: #8a9ab0; }
+    .song-mid { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; flex-shrink: 0; }
+    .diff-badge { padding: 2px 8px; border-radius: 4px; font-size: 9px; font-weight: 800; letter-spacing: 1px; }
+    .diff-easy   { box-shadow: inset 2px 2px 3px #b8bec7, inset -2px -2px 3px #fff; color: #6a9a7e; }
+    .diff-normal { box-shadow: inset 2px 2px 3px #b8bec7, inset -2px -2px 3px #fff; color: #8a8a5e; }
+    .diff-hard   { box-shadow: inset 2px 2px 3px #b8bec7, inset -2px -2px 3px #fff; color: #9a6a6a; }
+    .s-stars { font-size: 10px; color: #b0bac8; letter-spacing: 1px; }
+    .song-end { flex-shrink: 0; text-align: right; }
+    .clear-badge {
+      padding: 3px 10px; border-radius: 6px; font-size: 9px; font-weight: 800; letter-spacing: 1px;
+      box-shadow: 2px 2px 4px #b8bec7, -2px -2px 4px #fff; color: #6a9a7e;
+    }
+    .lock-badge {
+      padding: 3px 10px; border-radius: 6px; font-size: 9px; font-weight: 800; letter-spacing: 1px;
+      box-shadow: inset 2px 2px 4px #b8bec7, inset -2px -2px 4px #fff; color: #b0bac8;
+    }
+    .wheel-item.locked {
+      opacity: 0.5 !important; cursor: default;
+    }
+    .wheel-item.locked .song-thumb { filter: grayscale(1) brightness(0.85); }
+    .wheel-item.locked .song-body .s-title { color: #b0bac8; }
+    .wheel-item.locked .song-body .s-artist { color: #c8cdd5; }
+
+    .jacket-locked-overlay {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 6px;
+      background: rgba(224,229,236,0.85); border-radius: 12px;
+      font-size: 28px; color: #b0bac8;
+    }
+    .jacket-locked-overlay span { font-size: 11px; font-weight: 700; letter-spacing: 2px; }
+
+    .start-btn {
+      flex-shrink: 0; padding: 14px; text-align: center; border: none; cursor: pointer;
+      font-size: 18px; font-weight: 900; letter-spacing: 6px; color: #4a5a6e;
+      background: #e0e5ec; border-radius: 12px;
+      box-shadow: 6px 6px 12px #b8bec7, -6px -6px 12px #fff;
+      transition: box-shadow 0.15s;
+    }
+    .start-btn:hover { box-shadow: 3px 3px 6px #b8bec7, -3px -3px 6px #fff; }
+    .start-btn:active { box-shadow: inset 4px 4px 8px #b8bec7, inset -4px -4px 8px #fff; }
+
+    /* ===== 太鼓ゲームオーバーレイ ===== */
+    .taiko-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: #e0e5ec;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.4s;
+    }
+    .taiko-overlay.active { opacity: 1; pointer-events: auto; }
+
+    .taiko-header {
+      position: absolute; top: 20px; left: 0; right: 0;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0 32px;
+    }
+    .taiko-score-box {
+      padding: 10px 24px; border-radius: 12px;
+      box-shadow: 6px 6px 12px #b8bec7, -6px -6px 12px #fff;
+      font-size: 14px; font-weight: 800; color: #3a4a5e; letter-spacing: 2px;
+    }
+    .taiko-score-box span { font-size: 28px; margin-left: 8px; }
+    .taiko-combo-box {
+      padding: 10px 24px; border-radius: 12px;
+      box-shadow: 6px 6px 12px #b8bec7, -6px -6px 12px #fff;
+      font-size: 14px; font-weight: 800; color: #3a4a5e; letter-spacing: 2px; text-align: center;
+    }
+    .taiko-combo-box span { font-size: 28px; display: block; }
+
+    .taiko-stage {
+      width: 90%; max-width: 900px; height: 180px;
+      border-radius: 18px;
+      box-shadow: inset 6px 6px 14px #b8bec7, inset -6px -6px 14px #fff;
+      position: relative; overflow: hidden;
+    }
+    .taiko-canvas { width: 100%; height: 100%; display: block; }
+
+    .taiko-judge {
+      position: absolute; top: 50%; left: 120px; transform: translate(-50%, -50%);
+      font-size: 28px; font-weight: 900; letter-spacing: 2px;
+      opacity: 0; transition: opacity 0.15s, transform 0.15s;
+      pointer-events: none; text-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .taiko-judge.show { opacity: 1; transform: translate(-50%, -60%); }
+    .taiko-judge.perfect { color: #e8a030; }
+    .taiko-judge.good { color: #6a9a7e; }
+    .taiko-judge.miss { color: #9a6a6a; }
+
+    .taiko-controls {
+      margin-top: 20px; display: flex; gap: 16px; align-items: center;
+    }
+    .taiko-key-hint {
+      padding: 10px 18px; border-radius: 10px;
+      box-shadow: 3px 3px 6px #b8bec7, -3px -3px 6px #fff;
+      font-size: 12px; font-weight: 700; color: #5a6a7e; text-align: center;
+    }
+    .taiko-key-hint .key {
+      display: inline-block; min-width: 28px; padding: 3px 8px; margin: 2px;
+      border-radius: 6px; font-size: 14px; font-weight: 800;
+      box-shadow: inset 2px 2px 4px #b8bec7, inset -2px -2px 4px #fff;
+    }
+
+    .taiko-progress {
+      width: 90%; max-width: 900px; height: 8px; margin-top: 16px;
+      border-radius: 4px;
+      box-shadow: inset 2px 2px 4px #b8bec7, inset -2px -2px 4px #fff;
+      overflow: hidden;
+    }
+    .taiko-progress-bar {
+      height: 100%; width: 0%; background: #8a9ab0; border-radius: 4px;
+      transition: width 0.1s;
+    }
+
+    /* ===== リザルト画面 ===== */
+    .result-overlay {
+      position: fixed; inset: 0; z-index: 1100;
+      background: #e0e5ec;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 24px; opacity: 0; pointer-events: none; transition: opacity 0.5s;
+    }
+    .result-overlay.active { opacity: 1; pointer-events: auto; }
+
+    .result-title {
+      font-size: 36px; font-weight: 900; color: #3a4a5e;
+      letter-spacing: 4px;
+    }
+    .result-score-display {
+      padding: 20px 48px; border-radius: 18px;
+      box-shadow: 6px 6px 14px #b8bec7, -6px -6px 14px #fff;
+      text-align: center;
+    }
+    .result-score-display .label { font-size: 12px; color: #8a9ab0; letter-spacing: 3px; }
+    .result-score-display .score { font-size: 52px; font-weight: 900; color: #3a4a5e; }
+
+    .result-stats {
+      display: flex; gap: 16px;
+    }
+    .result-stat {
+      padding: 12px 20px; border-radius: 12px;
+      box-shadow: 4px 4px 8px #b8bec7, -4px -4px 8px #fff;
+      text-align: center; min-width: 80px;
+    }
+    .result-stat .label { font-size: 10px; color: #8a9ab0; letter-spacing: 2px; }
+    .result-stat .val { font-size: 20px; font-weight: 800; margin-top: 4px; }
+    .result-stat .val.perfect { color: #e8a030; }
+    .result-stat .val.good { color: #6a9a7e; }
+    .result-stat .val.miss { color: #9a6a6a; }
+
+    .result-unlock {
+      padding: 20px 28px; border-radius: 14px;
+      box-shadow: 6px 6px 12px #b8bec7, -6px -6px 12px #fff;
+      max-width: 500px; max-height: 260px; overflow-y: auto; text-align: center;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .result-unlock h3 {
+      font-size: 14px; color: #8a9ab0; letter-spacing: 2px; margin-bottom: 12px;
+    }
+    .result-unlock-link {
+      display: flex; align-items: center; gap: 14px; text-decoration: none; color: inherit;
+      padding: 10px; border-radius: 10px;
+      box-shadow: inset 3px 3px 6px #b8bec7, inset -3px -3px 6px #fff;
+      transition: box-shadow 0.2s;
+    }
+    .result-unlock-link:hover {
+      box-shadow: inset 2px 2px 4px #b8bec7, inset -2px -2px 4px #fff;
+    }
+    .result-unlock-link img {
+      width: 60px; height: 60px; border-radius: 8px; object-fit: cover; flex-shrink: 0;
+    }
+    .result-unlock-link .info { text-align: left; }
+    .result-unlock-link .info .t { font-size: 13px; font-weight: 700; color: #3a4a5e; }
+    .result-unlock-link .info .d { font-size: 11px; color: #8a9ab0; margin-top: 4px; }
+
+    .result-back-btn {
+      padding: 14px 40px; border: none; cursor: pointer;
+      font-size: 16px; font-weight: 800; letter-spacing: 4px; color: #4a5a6e;
+      background: #e0e5ec; border-radius: 12px;
+      box-shadow: 6px 6px 12px #b8bec7, -6px -6px 12px #fff;
+      transition: box-shadow 0.15s;
+    }
+    .result-back-btn:hover { box-shadow: 3px 3px 6px #b8bec7, -3px -3px 6px #fff; }
+    .result-back-btn:active { box-shadow: inset 4px 4px 8px #b8bec7, inset -4px -4px 8px #fff; }
+
+    @media (max-width: 900px) {
+      .app { flex-direction: column; }
+      .profile-col { flex: none; flex-direction: row; flex-wrap: wrap; gap: 16px; padding: 16px; }
+      .preview-row { flex-direction: column; max-height: none; }
+      .ranking-area { flex: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== 左: プロフィール固定 ===== -->
+  <div class="profile-col neu">
+    <div class="profile-avatar">
+      <img src="avatar.png" alt="mos" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+    </div>
+    <h1 class="profile-name">mos - モス -</h1>
+    <p class="profile-role">Reazon HD 新規Mobile appの<br>プロダクトデザイナー</p>
+
+    <div class="profile-section">
+      <h3>略歴</h3>
+      <ul>
+        <li>BEAMS</li>
+        <li>THECOO（Fanicon）</li>
+        <li>Findy（Findy Team+）</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== 右: メインエリア ===== -->
+  <div class="main-col">
+
+    <!-- 上段: プレビュー -->
+    <div class="preview-row">
+      <a class="jacket-area neu" id="jacketLink" href="#" target="_blank" style="text-decoration:none; color:inherit; cursor:pointer;">
+        <div class="jacket-frame" id="jacketFrame">
+          <img id="jacketImg" src="" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:12px; display:none;">
+          <span class="jacket-emoji" id="jacketEmoji">📝</span>
+          <span class="jacket-badge" id="jacketBadge">2025</span>
+          <div class="jacket-locked-overlay" id="jacketLock">🔒<span>PLAY TO UNLOCK</span></div>
+        </div>
+        <div class="jacket-info">
+          <h2 id="jacketTitle">note記事</h2>
+          <p class="sub" id="jacketSub">記事を選択してください</p>
+          <div class="jacket-stats">
+            <div class="jacket-stat"><div class="label">Date</div><div class="val" id="statDate">-</div></div>
+            <div class="jacket-stat"><div class="label">Diff</div><div class="val" id="statDiff">-</div></div>
+            <div class="jacket-stat"><div class="label">Stars</div><div class="val" id="statStars">★★★</div></div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <!-- 下段: 曲選択エリア -->
+    <div class="list-area">
+      <div class="diff-tabs">
+        <button class="diff-tab" data-diff="easy">Easy</button>
+        <button class="diff-tab active" data-diff="normal">Normal</button>
+        <button class="diff-tab" data-diff="hard">Hard</button>
+      </div>
+      <button class="arrow-btn" id="arrowUp">&#9650;</button>
+      <div class="wheel-container" id="wheelContainer">
+        <div class="wheel" id="wheel"></div>
+      </div>
+      <button class="arrow-btn" id="arrowDown">&#9660;</button>
+      <button class="start-btn" id="startBtn">START!</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== 太鼓ゲームオーバーレイ ===== -->
+<div class="taiko-overlay" id="taikoOverlay">
+  <div class="taiko-header">
+    <div class="taiko-score-box">SCORE<span id="taikoScore">0</span></div>
+    <div class="taiko-combo-box">COMBO<span id="taikoCombo">0</span></div>
+  </div>
+  <div class="taiko-stage" id="taikoStage">
+    <canvas class="taiko-canvas" id="taikoCanvas"></canvas>
+    <div class="taiko-judge" id="taikoJudge"></div>
+  </div>
+  <div class="taiko-progress">
+    <div class="taiko-progress-bar" id="taikoProgress"></div>
+  </div>
+  <div class="taiko-controls">
+    <div class="taiko-key-hint">🔴 ドン<br><span class="key">D</span><span class="key">F</span></div>
+    <div class="taiko-key-hint">🔵 カッ<br><span class="key">J</span><span class="key">K</span></div>
+  </div>
+</div>
+
+<!-- ===== リザルト画面 ===== -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-title">RESULT</div>
+  <div class="result-score-display">
+    <div class="label">SCORE</div>
+    <div class="score" id="resultScore">0</div>
+  </div>
+  <div class="result-stats">
+    <div class="result-stat"><div class="label">PERFECT</div><div class="val perfect" id="resultPerfect">0</div></div>
+    <div class="result-stat"><div class="label">GOOD</div><div class="val good" id="resultGood">0</div></div>
+    <div class="result-stat"><div class="label">MISS</div><div class="val miss" id="resultMiss">0</div></div>
+    <div class="result-stat"><div class="label">MAX COMBO</div><div class="val" id="resultMaxCombo">0</div></div>
+  </div>
+  <div class="result-unlock" id="resultUnlock">
+    <h3>UNLOCKED ARTICLE</h3>
+    <a class="result-unlock-link" id="resultLink" href="#" target="_blank">
+      <img id="resultThumb" src="" alt="">
+      <div class="info">
+        <div class="t" id="resultArticleTitle">-</div>
+        <div class="d" id="resultArticleDate">-</div>
+      </div>
+    </a>
+  </div>
+  <button class="result-back-btn" id="resultBackBtn">BACK</button>
+</div>
+
+<script>
+const songs = [
+  {
+    title:'Robloxに夢中な5歳児と、AIを使って親子ゲーム開発をはじめてみた話',
+    artist:'2025.12.22',
+    url:'https://note.com/mosmos_noki/n/ncffa117182b2',
+    thumb:'https://assets.st-note.com/production/uploads/images/237985623/rectangle_large_type_2_47633110eefd8b16626e59bf21d0fd6e.jpeg?fit=bounds&quality=85&width=1280',
+    diff:'easy', stars:4, cleared:true
+  },
+  {
+    title:'Designship2025で感じた「魅力がより伝わるスポンサーブース」に共通していること',
+    artist:'2025.10.20',
+    url:'https://note.com/mosmos_noki/n/n28e227c8b17e',
+    thumb:'https://assets.st-note.com/production/uploads/images/223490523/rectangle_large_type_2_f8bff0df3cd64ffc8b6e73ba5f2e7c4e.jpeg?fit=bounds&quality=85&width=1280',
+    diff:'normal', stars:4, cleared:true
+  },
+  {
+    title:'一つ一つの仕事をストーリーにするFigma活用術',
+    artist:'2024.12.18',
+    url:'https://note.com/mosmos_noki/n/n05f14609e9aa',
+    thumb:'https://assets.st-note.com/production/uploads/images/166223329/rectangle_large_type_2_b752b188129ecc3a0e5300219e9fa2d9.jpeg?fit=bounds&quality=85&width=1280',
+    diff:'normal', stars:5, cleared:true
+  },
+  {
+    title:'事業貢献に挑戦するプロダクトデザイナーって実際なにしてるの？ 2024年の振り返りとこれから',
+    artist:'2024.12.10',
+    url:'https://note.com/mosmos_noki/n/n2b9f8e227738',
+    thumb:'https://assets.st-note.com/production/uploads/images/165303204/rectangle_large_type_2_dd5c285618c14c575940ce1174b1d9be.jpeg?fit=bounds&quality=85&width=1280',
+    diff:'hard', stars:5, cleared:true
+  },
+  {
+    title:'スタートアップで働くワーママのリアル！元同僚同士でインタビューしてみた',
+    artist:'2024.10.09',
+    url:'https://note.com/mosmos_noki/n/n623483d20f2f',
+    thumb:'https://assets.st-note.com/production/uploads/images/156146834/rectangle_large_type_2_ae9944b8004205ae12c9614bef67591e.png?fit=bounds&quality=85&width=1280',
+    diff:'easy', stars:3, cleared:true
+  },
+  {
+    title:'デザイナーも大事にしたい「開発生産性」を図解してみた',
+    artist:'2024.06.26',
+    url:'https://note.com/mosmos_noki/n/n240241129236',
+    thumb:'https://assets.st-note.com/production/uploads/images/145233204/rectangle_large_type_2_1d1364d5b42146dbe042eb7b350cd452.png?fit=bounds&quality=85&width=1280',
+    diff:'hard', stars:5, cleared:true
+  },
+];
+
+
+// アンロック状態管理（songsのindexで管理）
+const unlockedSet = new Set();
+
+function isSongUnlocked(songIndex) {
+  return unlockedSet.has(songIndex);
+}
+
+function unlockSongsUpTo(count) {
+  // articlesByScoreの順にcount個までアンロック（articlesByScoreはsongsのindexの配列）
+  for (let i = 0; i < count && i < articlesByScore.length; i++) {
+    unlockedSet.add(articlesByScore[i]);
+  }
+}
+
+// articlesByScore参照用（songs配列のindex→articlesByScoreでの順位）
+const articlesByScore = [
+  5, // songs[5]: デザイナーも大事にしたい「開発生産性」 - 人気・無難
+  2, // songs[2]: 一つ一つの仕事をストーリーにするFigma活用術
+  3, // songs[3]: 事業貢献に挑戦するプロダクトデザイナー
+  1, // songs[1]: Designship2025
+  4, // songs[4]: スタートアップで働くワーママのリアル - 個人的
+  0, // songs[0]: Robloxに夢中な5歳児と親子ゲーム開発 - 一番恥ずかしい
+];
+
+function starStr(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
+function diffLabel(d) { return d === 'easy' ? 'EASY' : d === 'normal' ? 'NORMAL' : 'HARD'; }
+function diffClass(d) { return d === 'easy' ? 'diff-easy' : d === 'normal' ? 'diff-normal' : 'diff-hard'; }
+
+function updateDetail(song) {
+  const img = document.getElementById('jacketImg');
+  const emoji = document.getElementById('jacketEmoji');
+  const lockEl = document.getElementById('jacketLock');
+  const songIdx = songs.indexOf(song);
+  const unlocked = isSongUnlocked(songIdx);
+
+  if (song.thumb) {
+    img.src = song.thumb;
+    img.style.display = 'block';
+    img.style.filter = unlocked ? 'none' : 'grayscale(1) brightness(0.7)';
+    emoji.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    emoji.style.display = 'block';
+  }
+  lockEl.style.display = unlocked ? 'none' : 'flex';
+  document.getElementById('jacketTitle').textContent = unlocked ? song.title : '???';
+  document.getElementById('jacketSub').textContent = unlocked ? song.artist : 'START!でゲームをプレイして解放';
+  document.getElementById('jacketBadge').textContent = diffLabel(song.diff).toUpperCase();
+  document.getElementById('statDate').textContent = unlocked ? song.artist : '???';
+  document.getElementById('statDiff').textContent = diffLabel(song.diff);
+  document.getElementById('statStars').textContent = starStr(song.stars);
+  document.getElementById('jacketLink').href = unlocked ? (song.url || '#') : '#';
+  document.getElementById('jacketLink').style.pointerEvents = unlocked ? 'auto' : 'none';
+}
+
+/* ===== ホイール ===== */
+const wheelEl = document.getElementById('wheel');
+const containerEl = document.getElementById('wheelContainer');
+const ITEM_H = 64;
+const ANGLE_STEP = 18;
+const RADIUS = 450;
+const MAX_PUSH = 30;
+const BASE_RIGHT = 4;
+const BASE_WIDTH_PCT = 60;
+const SELECTED_EXTRA_W = 36;
+let selectedIndex = 0;
+let currentAngle = 0;
+let targetAngle = 0;
+let animId = null;
+let wheelItems = [];
+let containerH = 0;
+
+let wheelLocked = false;
+const WHEEL_COOLDOWN = 200;
+
+function buildWheel() {
+  wheelEl.innerHTML = '';
+  wheelItems = [];
+  containerH = containerEl.clientHeight;
+  songs.forEach((song, i) => {
+    const el = document.createElement('div');
+    const unlocked = isSongUnlocked(i);
+    el.className = 'wheel-item' + (unlocked ? '' : ' locked');
+    el.innerHTML = `
+      <div class="song-thumb">
+        ${song.thumb
+          ? `<img src="${song.thumb}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`
+          : '📝'}
+      </div>
+      <div class="song-body">
+        <div class="s-title">${unlocked ? song.title : '🔒 ???'}</div>
+        <div class="s-artist">${unlocked ? song.artist : 'LOCKED'}</div>
+      </div>
+      <div class="song-mid">
+        <span class="diff-badge ${diffClass(song.diff)}">${diffLabel(song.diff)}</span>
+        <span class="s-stars">${starStr(song.stars)}</span>
+      </div>
+      <div class="song-end">
+        ${unlocked ? '<span class="clear-badge">CLEAR</span>' : '<span class="lock-badge">LOCK</span>'}
+      </div>
+    `;
+    el.addEventListener('click', () => selectByIndex(i));
+    wheelEl.appendChild(el);
+    wheelItems.push(el);
+  });
+  layoutWheel();
+}
+
+function layoutWheel() {
+  const centerY = containerH / 2;
+  wheelItems.forEach((el, i) => {
+    const angle = i * ANGLE_STEP - currentAngle;
+    const rad = angle * Math.PI / 180;
+    const y = Math.sin(rad) * RADIUS;
+    const cosVal = Math.cos(rad);
+    const xPush = cosVal > 0 ? cosVal * MAX_PUSH : 0;
+
+    let normAngle = Math.abs(angle % 360);
+    if (normAngle > 180) normAngle = 360 - normAngle;
+    const opacity = Math.max(0, 1 - normAngle / 70);
+    const scale = Math.max(0.55, 1 - normAngle / 100);
+    const w = BASE_WIDTH_PCT + (cosVal > 0 ? cosVal * SELECTED_EXTRA_W : 0);
+
+    el.style.width = w + '%';
+    el.style.top = (centerY + y - ITEM_H / 2) + 'px';
+    el.style.right = BASE_RIGHT + 'px';
+    el.style.left = 'auto';
+    el.style.transform = `translateX(-${xPush}px) scale(${scale})`;
+    el.style.opacity = opacity;
+    el.style.zIndex = Math.round((1 - normAngle / 180) * 100);
+    el.style.pointerEvents = opacity < 0.15 ? 'none' : 'auto';
+    el.classList.toggle('selected', i === selectedIndex);
+  });
+}
+
+function selectByIndex(i) {
+  selectedIndex = i;
+  targetAngle = i * ANGLE_STEP;
+  updateDetail(songs[i]);
+  animateWheel();
+}
+
+function moveBy(delta) {
+  selectedIndex = (selectedIndex + delta + songs.length) % songs.length;
+  targetAngle = selectedIndex * ANGLE_STEP;
+  updateDetail(songs[selectedIndex]);
+  animateWheel();
+}
+
+function animateWheel() {
+  if (animId) cancelAnimationFrame(animId);
+  (function step() {
+    const diff = targetAngle - currentAngle;
+    if (Math.abs(diff) < 0.3) { currentAngle = targetAngle; layoutWheel(); return; }
+    currentAngle += diff * 0.18;
+    layoutWheel();
+    animId = requestAnimationFrame(step);
+  })();
+}
+
+containerEl.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  if (wheelLocked) return;
+  wheelLocked = true;
+  setTimeout(() => { wheelLocked = false; }, WHEEL_COOLDOWN);
+  moveBy(e.deltaY > 0 ? 1 : -1);
+}, { passive: false });
+
+let touchStartY = 0;
+containerEl.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; });
+containerEl.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const dy = touchStartY - e.touches[0].clientY;
+  if (Math.abs(dy) > 30) { moveBy(dy > 0 ? 1 : -1); touchStartY = e.touches[0].clientY; }
+}, { passive: false });
+
+document.addEventListener('keydown', (e) => {
+  if (gameActive) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); moveBy(1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); moveBy(-1); }
+});
+
+document.getElementById('arrowUp').addEventListener('click', () => moveBy(-1));
+document.getElementById('arrowDown').addEventListener('click', () => moveBy(1));
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  startTaikoGame();
+});
+
+/* ===== 太鼓の達人風リズムゲーム ===== */
+const taikoOverlay = document.getElementById('taikoOverlay');
+const taikoCanvas = document.getElementById('taikoCanvas');
+const taikoCtx = taikoCanvas.getContext('2d');
+const taikoJudgeEl = document.getElementById('taikoJudge');
+const taikoScoreEl = document.getElementById('taikoScore');
+const taikoComboEl = document.getElementById('taikoCombo');
+const taikoProgressEl = document.getElementById('taikoProgress');
+const resultOverlay = document.getElementById('resultOverlay');
+
+// articlesByScore は上部で songs index の配列として定義済み
+// articlesByScore = [5, 2, 3, 1, 4, 0]
+// songs参照用ヘルパー
+function getArticlesByScoreSongs() {
+  return articlesByScore.map(i => songs[i]);
+}
+
+let gameNotes = [];
+let gameActive = false;
+let gameStartTime = 0;
+let gameScore = 0;
+let gameCombo = 0;
+let gameMaxCombo = 0;
+let gamePerfect = 0;
+let gameGood = 0;
+let gameMiss = 0;
+let gameAnimId = null;
+let gameDuration = 0;
+
+const HIT_X = 100;         // 判定ラインのX位置
+const NOTE_SPEED = 320;    // px/秒
+const NOTE_R = 22;
+const PERFECT_WINDOW = 60; // ms
+const GOOD_WINDOW = 120;   // ms
+
+/* ===== BGM生成 (Web Audio API) ===== */
+let audioCtx = null;
+let bgmNodes = [];
+
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playBGM() {
+  initAudio();
+  stopBGM();
+
+  const bpm = 140;
+  const beatSec = 60 / bpm;
+  const now = audioCtx.currentTime + 0.1;
+
+  // マスターゲイン
+  const master = audioCtx.createGain();
+  master.gain.value = 0.25;
+  master.connect(audioCtx.destination);
+  bgmNodes.push(master);
+
+  // ベースライン（和太鼓風の低音ループ）
+  const bassPattern = [0, 0, 5, 0, 3, 0, 5, 7, 0, 0, 3, 5, 0, 7, 5, 3];
+  const baseFreq = 110; // A2
+  const scaleRatios = [1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5, 2]; // マイナースケール風
+
+  for (let loop = 0; loop < 4; loop++) {
+    bassPattern.forEach((note, i) => {
+      const t = now + (loop * bassPattern.length + i) * beatSec * 0.5;
+      if (t > now + 16) return;
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = baseFreq * scaleRatios[note];
+      g.gain.setValueAtTime(0.3, t);
+      g.gain.exponentialRampToValueAtTime(0.01, t + beatSec * 0.4);
+      osc.connect(g); g.connect(master);
+      osc.start(t); osc.stop(t + beatSec * 0.5);
+      bgmNodes.push(osc, g);
+    });
+  }
+
+  // メロディ（祭り囃子風）
+  const melody = [0, 2, 3, 5, 7, 5, 3, 2, 0, 2, 3, 5, 3, 2, 0, -1,
+                  5, 7, 5, 3, 2, 3, 5, 7, 5, 3, 2, 0, 2, 3, 2, 0];
+  const melBase = 440;
+
+  for (let loop = 0; loop < 2; loop++) {
+    melody.forEach((note, i) => {
+      const t = now + (loop * melody.length + i) * beatSec * 0.5;
+      if (t > now + 16 || note < 0) return;
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = melBase * scaleRatios[note];
+      g.gain.setValueAtTime(0.08, t);
+      g.gain.exponentialRampToValueAtTime(0.01, t + beatSec * 0.35);
+      osc.connect(g); g.connect(master);
+      osc.start(t); osc.stop(t + beatSec * 0.45);
+      bgmNodes.push(osc, g);
+    });
+  }
+
+  // ドラムパターン（ノイズベースのキック＆ハイハット）
+  for (let i = 0; i < 60; i++) {
+    const t = now + i * beatSec * 0.5;
+    if (t > now + 16) break;
+
+    // キック（偶数拍）
+    if (i % 2 === 0) {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(150, t);
+      osc.frequency.exponentialRampToValueAtTime(40, t + 0.1);
+      g.gain.setValueAtTime(0.5, t);
+      g.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+      osc.connect(g); g.connect(master);
+      osc.start(t); osc.stop(t + 0.2);
+      bgmNodes.push(osc, g);
+    }
+
+    // ハイハット（毎拍）
+    const bufSize = audioCtx.sampleRate * 0.04;
+    const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let s = 0; s < bufSize; s++) data[s] = (Math.random() * 2 - 1) * (1 - s / bufSize);
+    const src = audioCtx.createBufferSource();
+    const hg = audioCtx.createGain();
+    src.buffer = buf;
+    hg.gain.setValueAtTime(i % 2 === 0 ? 0.12 : 0.18, t);
+    hg.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+    // ハイパスフィルタ
+    const hp = audioCtx.createBiquadFilter();
+    hp.type = 'highpass'; hp.frequency.value = 8000;
+    src.connect(hp); hp.connect(hg); hg.connect(master);
+    src.start(t);
+    bgmNodes.push(src, hg, hp);
+  }
+}
+
+function stopBGM() {
+  bgmNodes.forEach(node => {
+    try { if (node.stop) node.stop(); } catch(e) {}
+    try { node.disconnect(); } catch(e) {}
+  });
+  bgmNodes = [];
+}
+
+// ドン/カッ効果音
+function playSE(type) {
+  initAudio();
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+
+  if (type === 'don') {
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(200, now);
+    osc.frequency.exponentialRampToValueAtTime(80, now + 0.12);
+    g.gain.setValueAtTime(0.5, now);
+    g.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(now); osc.stop(now + 0.2);
+  } else {
+    // カッ: ノイズ系の高音
+    const bufSize = audioCtx.sampleRate * 0.06;
+    const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let s = 0; s < bufSize; s++) data[s] = (Math.random() * 2 - 1) * (1 - s / bufSize);
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    const hp = audioCtx.createBiquadFilter();
+    hp.type = 'highpass'; hp.frequency.value = 3000;
+    g.gain.setValueAtTime(0.4, now);
+    g.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+    src.connect(hp); hp.connect(g); g.connect(audioCtx.destination);
+    src.start(now);
+  }
+}
+
+function generateNotes() {
+  const notes = [];
+  const duration = 15000; // 15秒
+  const minGap = 280;
+  let t = 1500; // 1.5秒後から開始
+  while (t < duration - 500) {
+    const type = Math.random() < 0.55 ? 'don' : 'ka';
+    notes.push({ time: t, type, hit: false, missed: false });
+    // ランダムな間隔
+    const gap = minGap + Math.random() * 400;
+    // たまに連打パターン
+    if (Math.random() < 0.25 && t + minGap * 3 < duration - 500) {
+      for (let j = 0; j < 2; j++) {
+        t += minGap;
+        notes.push({ time: t, type: Math.random() < 0.5 ? 'don' : 'ka', hit: false, missed: false });
+      }
+    }
+    t += gap;
+  }
+  gameDuration = duration;
+  return notes;
+}
+
+function resizeTaikoCanvas() {
+  const stage = document.getElementById('taikoStage');
+  taikoCanvas.width = stage.clientWidth;
+  taikoCanvas.height = stage.clientHeight;
+}
+
+function startTaikoGame() {
+  // リセット
+  gameScore = 0; gameCombo = 0; gameMaxCombo = 0;
+  gamePerfect = 0; gameGood = 0; gameMiss = 0;
+  gameNotes = generateNotes();
+  taikoScoreEl.textContent = '0';
+  taikoComboEl.textContent = '0';
+  taikoProgressEl.style.width = '0%';
+
+  resizeTaikoCanvas();
+  taikoOverlay.classList.add('active');
+  gameActive = true;
+
+  // カウントダウン後にスタート
+  let countdown = 3;
+  const cdInterval = setInterval(() => {
+    if (countdown > 0) {
+      showJudge(countdown, '');
+      countdown--;
+    } else {
+      clearInterval(cdInterval);
+      showJudge('GO!', 'perfect');
+      gameStartTime = performance.now();
+      playBGM();
+      gameAnimId = requestAnimationFrame(taikoGameLoop);
+    }
+  }, 700);
+}
+
+function taikoGameLoop(now) {
+  if (!gameActive) return;
+  const elapsed = now - gameStartTime;
+  const progress = Math.min(elapsed / gameDuration, 1);
+  taikoProgressEl.style.width = (progress * 100) + '%';
+
+  // ミス判定: 判定ラインを通過したノーツ
+  gameNotes.forEach(note => {
+    if (!note.hit && !note.missed && elapsed > note.time + GOOD_WINDOW + 50) {
+      note.missed = true;
+      gameMiss++;
+      gameCombo = 0;
+      taikoComboEl.textContent = gameCombo;
+      showJudge('MISS', 'miss');
+    }
+  });
+
+  drawTaikoFrame(elapsed);
+
+  if (elapsed < gameDuration + 1000) {
+    gameAnimId = requestAnimationFrame(taikoGameLoop);
+  } else {
+    endTaikoGame();
+  }
+}
+
+function drawTaikoFrame(elapsed) {
+  const W = taikoCanvas.width;
+  const H = taikoCanvas.height;
+  const ctx = taikoCtx;
+  ctx.clearRect(0, 0, W, H);
+
+  // レーン背景
+  const laneY = H / 2;
+  ctx.fillStyle = '#d5dae2';
+  ctx.fillRect(0, laneY - 36, W, 72);
+
+  // 判定ライン（太鼓の円）
+  ctx.beginPath();
+  ctx.arc(HIT_X, laneY, 32, 0, Math.PI * 2);
+  ctx.strokeStyle = '#b0bac8';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(HIT_X, laneY, 28, 0, Math.PI * 2);
+  ctx.fillStyle = '#e0e5ec';
+  ctx.fill();
+  ctx.strokeStyle = '#c8cdd5';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // 太鼓の内側
+  ctx.beginPath();
+  ctx.arc(HIT_X, laneY, 16, 0, Math.PI * 2);
+  ctx.fillStyle = '#d0d5dc';
+  ctx.fill();
+
+  // ノーツ描画
+  gameNotes.forEach(note => {
+    if (note.hit || note.missed) return;
+    const noteTime = note.time - elapsed;
+    const x = HIT_X + (noteTime / 1000) * NOTE_SPEED;
+    if (x < -50 || x > W + 50) return;
+
+    ctx.beginPath();
+    ctx.arc(x, laneY, NOTE_R, 0, Math.PI * 2);
+
+    if (note.type === 'don') {
+      // ドン: 赤系（ニューモフィズムに合わせて落ち着いた赤）
+      ctx.fillStyle = '#c47070';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x, laneY, NOTE_R - 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#d48888';
+      ctx.fill();
+    } else {
+      // カッ: 青系
+      ctx.fillStyle = '#6088b0';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x, laneY, NOTE_R - 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#78a0c8';
+      ctx.fill();
+    }
+
+    // ノーツの影（ニューモフィズム風）
+    ctx.beginPath();
+    ctx.arc(x, laneY, NOTE_R, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  });
+
+  // レーンのラベル
+  ctx.fillStyle = '#a0aab8';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('ドン', HIT_X, laneY - 40);
+  ctx.fillText('カッ', HIT_X, laneY + 50);
+}
+
+function hitNote(type) {
+  if (!gameActive || !gameStartTime) return;
+  const elapsed = performance.now() - gameStartTime;
+  let closest = null;
+  let closestDiff = Infinity;
+
+  gameNotes.forEach(note => {
+    if (note.hit || note.missed || note.type !== type) return;
+    const diff = Math.abs(elapsed - note.time);
+    if (diff < closestDiff) { closestDiff = diff; closest = note; }
+  });
+
+  if (!closest) return;
+
+  if (closestDiff <= PERFECT_WINDOW) {
+    closest.hit = true;
+    gamePerfect++;
+    gameScore += 300;
+    gameCombo++;
+    showJudge('PERFECT', 'perfect');
+    playSE(type);
+  } else if (closestDiff <= GOOD_WINDOW) {
+    closest.hit = true;
+    gameGood++;
+    gameScore += 100;
+    gameCombo++;
+    showJudge('GOOD', 'good');
+    playSE(type);
+  } else if (closestDiff <= 200) {
+    closest.hit = true;
+    gameGood++;
+    gameScore += 50;
+    gameCombo++;
+    showJudge('GOOD', 'good');
+    playSE(type);
+  } else {
+    return; // まだ遠い、無視
+  }
+
+  // コンボボーナス
+  if (gameCombo > 0 && gameCombo % 10 === 0) gameScore += 500;
+  if (gameCombo > gameMaxCombo) gameMaxCombo = gameCombo;
+
+  taikoScoreEl.textContent = gameScore;
+  taikoComboEl.textContent = gameCombo;
+
+  // ヒットエフェクト
+  flashHitZone(type);
+}
+
+function flashHitZone(type) {
+  const ctx = taikoCtx;
+  const laneY = taikoCanvas.height / 2;
+  ctx.beginPath();
+  ctx.arc(HIT_X, laneY, 36, 0, Math.PI * 2);
+  ctx.fillStyle = type === 'don' ? 'rgba(196,112,112,0.3)' : 'rgba(96,136,176,0.3)';
+  ctx.fill();
+}
+
+let judgeTimeout = null;
+function showJudge(text, cls) {
+  taikoJudgeEl.textContent = text;
+  taikoJudgeEl.className = 'taiko-judge show ' + cls;
+  clearTimeout(judgeTimeout);
+  judgeTimeout = setTimeout(() => {
+    taikoJudgeEl.classList.remove('show');
+  }, 400);
+}
+
+function endTaikoGame() {
+  gameActive = false;
+  if (gameAnimId) cancelAnimationFrame(gameAnimId);
+  stopBGM();
+  taikoOverlay.classList.remove('active');
+
+  // スコアに応じて記事を解放（高スコアほど恥ずかしい記事が解放）
+  const maxPossible = gameNotes.length * 300 + Math.floor(gameNotes.length / 10) * 500;
+  const ratio = gameScore / maxPossible;
+
+  // ratio が高いほどインデックスが大きい（恥ずかしい）記事まで解放
+  let unlockCount;
+  if (ratio >= 0.85) unlockCount = 6;      // 全記事解放
+  else if (ratio >= 0.7) unlockCount = 5;
+  else if (ratio >= 0.55) unlockCount = 4;
+  else if (ratio >= 0.4) unlockCount = 3;
+  else if (ratio >= 0.2) unlockCount = 2;
+  else unlockCount = 1;                     // 最低でも1記事
+
+  const absSongs = getArticlesByScoreSongs();
+  const prevUnlockCount = unlockedSet.size;
+
+  // アンロック状態を更新
+  unlockSongsUpTo(unlockCount);
+
+  const unlockedArticles = absSongs.slice(0, unlockCount);
+
+  // リザルト画面を表示
+  document.getElementById('resultScore').textContent = gameScore;
+  document.getElementById('resultPerfect').textContent = gamePerfect;
+  document.getElementById('resultGood').textContent = gameGood;
+  document.getElementById('resultMiss').textContent = gameMiss;
+  document.getElementById('resultMaxCombo').textContent = gameMaxCombo;
+
+  // アンロック記事リストを構築
+  const unlockEl = document.getElementById('resultUnlock');
+  unlockEl.innerHTML = `<h3>UNLOCKED ${unlockedSet.size}/${songs.length} ARTICLES</h3>`;
+  unlockedArticles.forEach((article, i) => {
+    const songIdx = songs.indexOf(article);
+    const wasAlreadyUnlocked = i < prevUnlockCount;
+    const isNew = !wasAlreadyUnlocked;
+    const link = document.createElement('a');
+    link.className = 'result-unlock-link';
+    link.href = article.url;
+    link.target = '_blank';
+    if (isNew) link.style.boxShadow = '0 0 0 2px #c47070, inset 3px 3px 6px #b8bec7, inset -3px -3px 6px #fff';
+    link.innerHTML = `
+      <img src="${article.thumb}" alt="">
+      <div class="info">
+        <div class="t">${isNew ? '🔓 NEW! ' : ''}${article.title}</div>
+        <div class="d">${article.artist}</div>
+      </div>
+    `;
+    unlockEl.appendChild(link);
+  });
+
+  resultOverlay.classList.add('active');
+}
+
+// ゲーム用キー入力
+document.addEventListener('keydown', (e) => {
+  if (!gameActive) return;
+  const key = e.key.toLowerCase();
+  if (key === 'd' || key === 'f') { e.preventDefault(); hitNote('don'); }
+  else if (key === 'j' || key === 'k') { e.preventDefault(); hitNote('ka'); }
+});
+
+// リザルト画面の戻るボタン
+document.getElementById('resultBackBtn').addEventListener('click', () => {
+  resultOverlay.classList.remove('active');
+  // ホイールを再構築してアンロック状態を反映
+  buildWheel();
+  updateDetail(songs[selectedIndex]);
+});
+
+window.addEventListener('resize', () => {
+  if (gameActive) resizeTaikoCanvas();
+});
+
+document.querySelectorAll('.diff-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.diff-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+
+updateDetail(songs[0]);
+buildWheel();
+
+window.addEventListener('resize', () => { containerH = containerEl.clientHeight; layoutWheel(); });
+</script>
+</body>
+</html>
