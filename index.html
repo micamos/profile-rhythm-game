@@ -427,16 +427,25 @@
 <div class="taiko-overlay" id="taikoOverlay">
   <div class="taiko-header">
     <div class="taiko-score-box">SCORE<span id="taikoScore">0</span></div>
+    <div class="taiko-score-box" id="taikoSongName" style="font-size:16px; letter-spacing:3px;">♪</div>
     <div class="taiko-combo-box">COMBO<span id="taikoCombo">0</span></div>
   </div>
-  <div class="taiko-stage" id="taikoStage">
+  <!-- 盛り上がり演出レイヤー（ステージの後ろ） -->
+  <div id="crowdLayer" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0;"></div>
+  <!-- 盛り上がりレベル表示 -->
+  <div id="hypeGauge" style="position:absolute;bottom:90px;left:50%;transform:translateX(-50%);
+    padding:6px 18px;border-radius:10px;font-size:13px;font-weight:800;letter-spacing:2px;color:#8a9ab0;
+    box-shadow:3px 3px 6px #b8bec7,-3px -3px 6px #fff;opacity:0;transition:opacity 0.3s,color 0.3s;">
+  </div>
+
+  <div class="taiko-stage" id="taikoStage" style="position:relative;z-index:1;">
     <canvas class="taiko-canvas" id="taikoCanvas"></canvas>
     <div class="taiko-judge" id="taikoJudge"></div>
   </div>
-  <div class="taiko-progress">
+  <div class="taiko-progress" style="position:relative;z-index:1;">
     <div class="taiko-progress-bar" id="taikoProgress"></div>
   </div>
-  <div class="taiko-controls">
+  <div class="taiko-controls" style="position:relative;z-index:1;">
     <div class="taiko-key-hint">🔴 ドン<br><span class="key">D</span><span class="key">F</span></div>
     <div class="taiko-key-hint">🔵 カッ<br><span class="key">J</span><span class="key">K</span></div>
   </div>
@@ -734,10 +743,75 @@ let gameAnimId = null;
 let gameDuration = 0;
 
 const HIT_X = 100;         // 判定ラインのX位置
-const NOTE_SPEED = 320;    // px/秒
 const NOTE_R = 22;
 const PERFECT_WINDOW = 60; // ms
 const GOOD_WINDOW = 120;   // ms
+let currentNoteSpeed = 320; // 曲ごとに変わる
+let currentSongVariant = null;
+
+/* ===== 曲バリエーション定義 ===== */
+const songVariants = [
+  {
+    name: '祭り囃子',
+    bpm: 140, noteSpeed: 320, duration: 15000,
+    minGap: 280, gapRange: 400, burstChance: 0.25, burstCount: 2,
+    melWave: 'square', melBase: 440,
+    melody: [0,2,3,5,7,5,3,2, 0,2,3,5,3,2,0,-1, 5,7,5,3,2,3,5,7, 5,3,2,0,2,3,2,0],
+    bass: [0,0,5,0,3,0,5,7, 0,0,3,5,0,7,5,3],
+    bassFreq: 110, scale: [1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5, 2],
+    kickPattern: i => i % 2 === 0, hhVol: [0.12, 0.18],
+  },
+  {
+    name: 'サイバー疾走',
+    bpm: 170, noteSpeed: 420, duration: 14000,
+    minGap: 200, gapRange: 280, burstChance: 0.35, burstCount: 3,
+    melWave: 'sawtooth', melBase: 523,
+    melody: [7,5,7,5,3,2,0,-1, 3,5,7,7,5,3,5,3, 0,2,3,5,7,5,7,-1, 5,3,2,0,2,3,5,7],
+    bass: [0,0,0,3,5,5,3,0, 7,7,5,3,0,0,3,5],
+    bassFreq: 82, scale: [1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8, 2],
+    kickPattern: i => i % 4 < 2, hhVol: [0.15, 0.22],
+  },
+  {
+    name: 'まったり盆踊り',
+    bpm: 105, noteSpeed: 230, duration: 18000,
+    minGap: 380, gapRange: 500, burstChance: 0.15, burstCount: 2,
+    melWave: 'triangle', melBase: 392,
+    melody: [0,2,3,5,3,2,0,-1, 0,3,5,3,2,0,-1,-1, 5,3,5,7,5,3,2,0, 3,2,0,-1,0,2,3,5],
+    bass: [0,0,3,0,5,0,3,0, 0,0,5,3,0,0,3,5],
+    bassFreq: 98, scale: [1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5, 2],
+    kickPattern: i => i % 4 === 0, hhVol: [0.08, 0.14],
+  },
+  {
+    name: 'ハードコア太鼓',
+    bpm: 195, noteSpeed: 500, duration: 12000,
+    minGap: 160, gapRange: 200, burstChance: 0.45, burstCount: 4,
+    melWave: 'square', melBase: 587,
+    melody: [0,3,5,7,7,5,3,0, 7,5,7,5,3,0,3,5, 0,0,3,5,7,7,5,3, 7,5,3,0,-1,0,3,7],
+    bass: [0,3,0,5,0,3,0,7, 0,5,0,3,0,7,5,3],
+    bassFreq: 73, scale: [1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5, 2],
+    kickPattern: i => true, hhVol: [0.2, 0.25],
+  },
+  {
+    name: 'ジャズ太鼓',
+    bpm: 128, noteSpeed: 300, duration: 16000,
+    minGap: 240, gapRange: 450, burstChance: 0.2, burstCount: 2,
+    melWave: 'sine', melBase: 466,
+    melody: [0,2,4,5,7,5,4,2, 0,4,7,5,4,2,0,-1, 7,5,4,2,4,5,7,-1, 4,2,0,2,4,5,4,2],
+    bass: [0,0,4,0,5,0,7,4, 0,0,5,7,0,4,2,0],
+    bassFreq: 104, scale: [1, 9/8, 5/4, 11/8, 3/2, 5/3, 15/8, 2],
+    kickPattern: i => i % 3 === 0, hhVol: [0.1, 0.16],
+  },
+  {
+    name: 'エレクトロ祭',
+    bpm: 155, noteSpeed: 380, duration: 15000,
+    minGap: 220, gapRange: 320, burstChance: 0.3, burstCount: 3,
+    melWave: 'sawtooth', melBase: 554,
+    melody: [0,0,3,5,7,7,5,3, 0,3,5,7,-1,7,5,3, 5,7,5,3,0,3,5,-1, 7,5,3,0,0,3,5,7],
+    bass: [0,5,0,5,3,7,3,7, 0,5,0,5,7,3,7,3],
+    bassFreq: 65, scale: [1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5, 2],
+    kickPattern: i => i % 2 === 0 || i % 8 === 3, hhVol: [0.18, 0.22],
+  },
+];
 
 /* ===== BGM生成 (Web Audio API) ===== */
 let audioCtx = null;
@@ -748,33 +822,29 @@ function initAudio() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
 
-function playBGM() {
+function playBGM(variant) {
   initAudio();
   stopBGM();
 
-  const bpm = 140;
-  const beatSec = 60 / bpm;
+  const v = variant;
+  const beatSec = 60 / v.bpm;
   const now = audioCtx.currentTime + 0.1;
+  const maxT = v.duration / 1000 + 1;
 
-  // マスターゲイン
   const master = audioCtx.createGain();
   master.gain.value = 0.25;
   master.connect(audioCtx.destination);
   bgmNodes.push(master);
 
-  // ベースライン（和太鼓風の低音ループ）
-  const bassPattern = [0, 0, 5, 0, 3, 0, 5, 7, 0, 0, 3, 5, 0, 7, 5, 3];
-  const baseFreq = 110; // A2
-  const scaleRatios = [1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5, 2]; // マイナースケール風
-
-  for (let loop = 0; loop < 4; loop++) {
-    bassPattern.forEach((note, i) => {
-      const t = now + (loop * bassPattern.length + i) * beatSec * 0.5;
-      if (t > now + 16) return;
+  // ベースライン
+  for (let loop = 0; loop < 6; loop++) {
+    v.bass.forEach((note, i) => {
+      const t = now + (loop * v.bass.length + i) * beatSec * 0.5;
+      if (t > now + maxT) return;
       const osc = audioCtx.createOscillator();
       const g = audioCtx.createGain();
       osc.type = 'triangle';
-      osc.frequency.value = baseFreq * scaleRatios[note];
+      osc.frequency.value = v.bassFreq * v.scale[note];
       g.gain.setValueAtTime(0.3, t);
       g.gain.exponentialRampToValueAtTime(0.01, t + beatSec * 0.4);
       osc.connect(g); g.connect(master);
@@ -783,19 +853,15 @@ function playBGM() {
     });
   }
 
-  // メロディ（祭り囃子風）
-  const melody = [0, 2, 3, 5, 7, 5, 3, 2, 0, 2, 3, 5, 3, 2, 0, -1,
-                  5, 7, 5, 3, 2, 3, 5, 7, 5, 3, 2, 0, 2, 3, 2, 0];
-  const melBase = 440;
-
-  for (let loop = 0; loop < 2; loop++) {
-    melody.forEach((note, i) => {
-      const t = now + (loop * melody.length + i) * beatSec * 0.5;
-      if (t > now + 16 || note < 0) return;
+  // メロディ
+  for (let loop = 0; loop < 4; loop++) {
+    v.melody.forEach((note, i) => {
+      const t = now + (loop * v.melody.length + i) * beatSec * 0.5;
+      if (t > now + maxT || note < 0) return;
       const osc = audioCtx.createOscillator();
       const g = audioCtx.createGain();
-      osc.type = 'square';
-      osc.frequency.value = melBase * scaleRatios[note];
+      osc.type = v.melWave;
+      osc.frequency.value = v.melBase * v.scale[note];
       g.gain.setValueAtTime(0.08, t);
       g.gain.exponentialRampToValueAtTime(0.01, t + beatSec * 0.35);
       osc.connect(g); g.connect(master);
@@ -804,13 +870,13 @@ function playBGM() {
     });
   }
 
-  // ドラムパターン（ノイズベースのキック＆ハイハット）
-  for (let i = 0; i < 60; i++) {
+  // ドラムパターン
+  const totalBeats = Math.ceil(maxT / (beatSec * 0.5));
+  for (let i = 0; i < totalBeats; i++) {
     const t = now + i * beatSec * 0.5;
-    if (t > now + 16) break;
+    if (t > now + maxT) break;
 
-    // キック（偶数拍）
-    if (i % 2 === 0) {
+    if (v.kickPattern(i)) {
       const osc = audioCtx.createOscillator();
       const g = audioCtx.createGain();
       osc.type = 'sine';
@@ -823,7 +889,6 @@ function playBGM() {
       bgmNodes.push(osc, g);
     }
 
-    // ハイハット（毎拍）
     const bufSize = audioCtx.sampleRate * 0.04;
     const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
     const data = buf.getChannelData(0);
@@ -831,9 +896,8 @@ function playBGM() {
     const src = audioCtx.createBufferSource();
     const hg = audioCtx.createGain();
     src.buffer = buf;
-    hg.gain.setValueAtTime(i % 2 === 0 ? 0.12 : 0.18, t);
+    hg.gain.setValueAtTime(v.hhVol[i % 2], t);
     hg.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
-    // ハイパスフィルタ
     const hp = audioCtx.createBiquadFilter();
     hp.type = 'highpass'; hp.frequency.value = 8000;
     src.connect(hp); hp.connect(hg); hg.connect(master);
@@ -866,7 +930,6 @@ function playSE(type) {
     osc.connect(g); g.connect(audioCtx.destination);
     osc.start(now); osc.stop(now + 0.2);
   } else {
-    // カッ: ノイズ系の高音
     const bufSize = audioCtx.sampleRate * 0.06;
     const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
     const data = buf.getChannelData(0);
@@ -882,26 +945,66 @@ function playSE(type) {
   }
 }
 
-function generateNotes() {
+/* ===== 超人ノーツ特殊能力 ===== */
+// 'normal'   = 通常
+// 'curve'    = 変化球（蛇行しながら来る）
+// 'spinoff'  = 途中でスピンオフ（急に方向転換）
+// 'outside'  = 外からくる（上下から飛んでくる）
+// 'bunshin'  = 分身（偽物が3つ、本物は1つ）
+// 'shrink'   = 急にサイズが小さくなる
+const SPECIAL_TYPES = ['curve', 'spinoff', 'outside', 'bunshin', 'shrink'];
+
+function generateNotes(variant) {
+  const v = variant;
   const notes = [];
-  const duration = 15000; // 15秒
-  const minGap = 280;
-  let t = 1500; // 1.5秒後から開始
-  while (t < duration - 500) {
+  let t = 1500;
+  let noteIndex = 0;
+  while (t < v.duration - 500) {
     const type = Math.random() < 0.55 ? 'don' : 'ka';
-    notes.push({ time: t, type, hit: false, missed: false });
-    // ランダムな間隔
-    const gap = minGap + Math.random() * 400;
-    // たまに連打パターン
-    if (Math.random() < 0.25 && t + minGap * 3 < duration - 500) {
-      for (let j = 0; j < 2; j++) {
-        t += minGap;
-        notes.push({ time: t, type: Math.random() < 0.5 ? 'don' : 'ka', hit: false, missed: false });
+    // 最初の数ノーツは通常、その後30%の確率で超人ノーツ
+    let special = 'normal';
+    if (noteIndex > 3 && Math.random() < 0.30) {
+      special = SPECIAL_TYPES[Math.floor(Math.random() * SPECIAL_TYPES.length)];
+    }
+    const note = { time: t, type, hit: false, missed: false, special };
+    // 分身: 本体+偽物の情報を付与
+    if (special === 'bunshin') {
+      note.bunshinCount = 3;
+      note.bunshinSeed = Math.random() * 1000;
+    }
+    // 外から: 飛んでくる方向
+    if (special === 'outside') {
+      note.fromTop = Math.random() < 0.5;
+    }
+    // 変化球: 振幅とスピード
+    if (special === 'curve') {
+      note.curveAmp = 30 + Math.random() * 40;
+      note.curveFreq = 3 + Math.random() * 4;
+    }
+    // スピンオフ: 発動タイミング
+    if (special === 'spinoff') {
+      note.spinOffAt = 0.3 + Math.random() * 0.3; // 進行30~60%で発動
+      note.spinDir = Math.random() < 0.5 ? 1 : -1;
+    }
+    // 縮小: 発動タイミング
+    if (special === 'shrink') {
+      note.shrinkAt = 0.4 + Math.random() * 0.3;
+    }
+    notes.push(note);
+    noteIndex++;
+    const gap = v.minGap + Math.random() * v.gapRange;
+    // 連打パターン
+    if (Math.random() < v.burstChance && t + v.minGap * (v.burstCount + 1) < v.duration - 500) {
+      for (let j = 0; j < v.burstCount; j++) {
+        t += v.minGap;
+        notes.push({ time: t, type: Math.random() < 0.5 ? 'don' : 'ka', hit: false, missed: false, special: 'normal' });
+        noteIndex++;
       }
     }
     t += gap;
   }
-  gameDuration = duration;
+  gameDuration = v.duration;
+  currentNoteSpeed = v.noteSpeed;
   return notes;
 }
 
@@ -911,14 +1014,481 @@ function resizeTaikoCanvas() {
   taikoCanvas.height = stage.clientHeight;
 }
 
+/* ===== 盛り上がりシステム（ニコニコ弾幕風） ===== */
+const crowdLayer = document.getElementById('crowdLayer');
+const hypeGauge = document.getElementById('hypeGauge');
+let hypeLevel = 0;
+let hypeParticles = [];
+let hypeComments = [];  // ニコニコ風弾幕コメント
+let hypeEmotes = [];
+let lastHypeLevel = -1;
+let screenShake = 0;
+
+const HYPE_THRESHOLDS = [0, 300, 1000, 2500, 5000];
+const HYPE_LABELS = ['', '♪ いいぞ...', '🔥 盛り上がってきた！', '🎆🎆🎆 最高潮！！！', '🐕🔥🎆💥 超人覚醒！！！！'];
+const HYPE_COLORS = ['#8a9ab0', '#6a9a7e', '#e8a030', '#c47070', '#d44080'];
+
+// ===== ニコニコ弾幕コメント =====
+const DANMAKU_BY_LEVEL = [
+  [],
+  // Lv1: 控えめ
+  ['いいね','おお','8888','ナイス','♪♪♪','ぱちぱち','ktkr','wktk'],
+  // Lv2: 盛り上がり
+  ['すごい！','うまい！','キタ━━━━(ﾟ∀ﾟ)━━━━!!','888888','神','ｗｗｗ','上手すぎ','天才か？','鳥肌','やばい'],
+  // Lv3: 最高潮
+  ['神！！！','うますぎワロタ','88888888888','ブラボー！！','天才！！','鳥肌やばい','涙出てきた','伝説の始まり',
+   'ここすき','全米が泣いた','才能の無駄遣い（褒め言葉）','これは伸びる','草','ファ!?','プロか？','ネ申'],
+  // Lv4: 超人覚醒
+  ['🔥🔥🔥🔥🔥🔥🔥🔥🔥','超人覚醒ｷﾀ━(ﾟ∀ﾟ)━!','犬wwwwww','ﾜﾝﾜﾝﾜﾝﾜﾝﾜﾝ',
+   '画面が見えないwww','もう何も怖くない','伝説','人類を超えた','なにこれwww',
+   '草草草草草草','神神神神神','💥💥💥BOOM💥💥💥','🐕💨💨💨',
+   '運営仕事しろ（褒め）','バグかと思った','これが超人...','全宇宙が泣いた',
+   '弾幕薄いぞ何やってんの！','犬も踊るレベル','もっと派手にしろ！！'],
+];
+
+const DANMAKU_COLORS = [
+  [],
+  ['#5a6a7e','#6a7a8e'],
+  ['#c47070','#6088b0','#5a6a7e','#8a7a5e'],
+  ['#c44040','#4070b0','#40a060','#b07020','#8040a0','#d44080'],
+  ['#ff3030','#ff6020','#3080ff','#30d060','#d020d0','#ff8800','#ff0080','#00d0ff'],
+];
+
+function spawnDanmaku(level, forceText) {
+  const pool = DANMAKU_BY_LEVEL[level] || DANMAKU_BY_LEVEL[1];
+  const colors = DANMAKU_COLORS[level] || DANMAKU_COLORS[1];
+  const text = forceText || pool[Math.floor(Math.random() * pool.length)];
+  const color = colors[Math.floor(Math.random() * colors.length)];
+  const rect = crowdLayer.getBoundingClientRect();
+  const fontSize = level >= 4
+    ? 18 + Math.floor(Math.random() * 22)
+    : level >= 3
+      ? 16 + Math.floor(Math.random() * 16)
+      : 14 + Math.floor(Math.random() * 10);
+  const speed = 2 + Math.random() * 3 + level * 0.5;
+
+  hypeComments.push({
+    text, color, fontSize,
+    x: rect.width + 10,
+    y: 10 + Math.random() * (rect.height - 30),
+    speed,
+    life: 1,
+    bold: level >= 3 && Math.random() < 0.5,
+    outline: level >= 3,
+    glow: level >= 4,
+  });
+}
+
+// ===== 大文字ドカン演出（画面中央にでかい文字） =====
+let bigTexts = [];
+function spawnBigText(text, color) {
+  bigTexts.push({
+    text, color,
+    life: 1,
+    decay: 0.012,
+    scale: 3,
+    targetScale: 1,
+    y: 0.3 + Math.random() * 0.4,
+  });
+}
+
+// ===== 花火パーティクル =====
+function spawnFirework(x, y) {
+  const colors = ['#ff4040','#ff8020','#ffcc00','#40d070','#4090ff','#d040ff','#ff2080','#00e0e0'];
+  const count = 20 + Math.floor(Math.random() * 20);
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+    const speed = 3 + Math.random() * 6;
+    hypeParticles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1,
+      decay: 0.012 + Math.random() * 0.012,
+      size: 3 + Math.random() * 5,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      type: 'firework',
+      trail: [],
+    });
+  }
+}
+
+// ===== 炎エフェクト（もっと派手に） =====
+function spawnFlame(x, y) {
+  const count = 15 + Math.floor(Math.random() * 10);
+  for (let i = 0; i < count; i++) {
+    hypeParticles.push({
+      x: x + (Math.random() - 0.5) * 60,
+      y,
+      vx: (Math.random() - 0.5) * 2.5,
+      vy: -3 - Math.random() * 6,
+      life: 1,
+      decay: 0.015 + Math.random() * 0.015,
+      size: 10 + Math.random() * 18,
+      color: ['#ff4020','#ff8020','#ffcc00','#ff6040'][Math.floor(Math.random()*4)],
+      type: 'flame'
+    });
+  }
+}
+
+// ===== 踊るエモート =====
+function spawnDancingEmote(emoji) {
+  const rect = crowdLayer.getBoundingClientRect();
+  hypeEmotes.push({
+    text: emoji || ['🐕','🐕‍🦺','🐶','🐾','💃','🕺','🎸','🥁'][Math.floor(Math.random() * 8)],
+    x: Math.random() * rect.width,
+    y: rect.height - 30 - Math.random() * 60,
+    life: 1, decay: 0.004,
+    size: 30 + Math.floor(Math.random() * 24),
+    wobble: Math.random() * Math.PI * 2,
+    dancing: true,
+  });
+}
+
+// ===== 画面中央エモート爆発 =====
+function spawnEmoteBurst() {
+  const rect = crowdLayer.getBoundingClientRect();
+  const emojis = ['🔥','💥','🎆','🎇','✨','⭐','🌟','💫','🎉','🎊'];
+  for (let i = 0; i < 12; i++) {
+    const angle = (Math.PI * 2 * i) / 12;
+    const speed = 2 + Math.random() * 3;
+    hypeEmotes.push({
+      text: emojis[Math.floor(Math.random() * emojis.length)],
+      x: rect.width / 2,
+      y: rect.height / 2,
+      life: 1, decay: 0.01,
+      size: 20 + Math.floor(Math.random() * 16),
+      wobble: 0,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      exploding: true,
+    });
+  }
+}
+
+function updateHypeLevel() {
+  let newLevel = 0;
+  for (let i = HYPE_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (gameScore >= HYPE_THRESHOLDS[i]) { newLevel = i; break; }
+  }
+  if (newLevel !== lastHypeLevel) {
+    hypeLevel = newLevel;
+    lastHypeLevel = newLevel;
+    hypeGauge.textContent = HYPE_LABELS[newLevel];
+    hypeGauge.style.color = HYPE_COLORS[newLevel];
+    hypeGauge.style.opacity = newLevel > 0 ? '1' : '0';
+
+    // レベルアップ大演出
+    if (newLevel >= 2) {
+      const rect = crowdLayer.getBoundingClientRect();
+      screenShake = newLevel * 3;
+      // 花火連発
+      for (let i = 0; i < newLevel * 3; i++) {
+        setTimeout(() => spawnFirework(
+          Math.random() * rect.width, Math.random() * rect.height * 0.5
+        ), i * 150);
+      }
+      // 弾幕ラッシュ
+      const rushTexts = newLevel >= 4
+        ? ['超人覚醒！！！','ｷﾀ━━━━(ﾟ∀ﾟ)━━━━!!','犬wwww','🔥🔥🔥','全宇宙が泣いた']
+        : newLevel >= 3
+          ? ['最高潮！！','888888888','神！！','伝説の始まり']
+          : ['盛り上がってきた！','おおおお','ktkr'];
+      for (let i = 0; i < newLevel * 5; i++) {
+        setTimeout(() => spawnDanmaku(newLevel, rushTexts[i % rushTexts.length]), i * 80);
+      }
+      // でかい文字
+      spawnBigText(HYPE_LABELS[newLevel], HYPE_COLORS[newLevel]);
+      spawnEmoteBurst();
+    }
+    if (newLevel >= 3) {
+      // 炎が両端から噴出
+      const rect = crowdLayer.getBoundingClientRect();
+      for (let i = 0; i < 4; i++) {
+        setTimeout(() => {
+          spawnFlame(30, rect.height);
+          spawnFlame(rect.width - 30, rect.height);
+        }, i * 200);
+      }
+    }
+    if (newLevel >= 4) {
+      for (let i = 0; i < 6; i++) setTimeout(() => spawnDancingEmote(), i * 200);
+    }
+  }
+}
+
+// コンボヒット時の演出
+function spawnHitCelebration() {
+  const rect = crowdLayer.getBoundingClientRect();
+
+  // 全レベル共通: コンボ5ごとに弾幕
+  if (gameCombo > 0 && gameCombo % 3 === 0 && hypeLevel >= 1) {
+    spawnDanmaku(hypeLevel);
+  }
+
+  if (hypeLevel >= 1) {
+    if (Math.random() < 0.5) spawnDanmaku(hypeLevel);
+  }
+  if (hypeLevel >= 2) {
+    if (Math.random() < 0.5) spawnDanmaku(hypeLevel);
+    if (Math.random() < 0.35) spawnFlame(Math.random() * rect.width, rect.height);
+    if (gameCombo > 0 && gameCombo % 10 === 0) {
+      spawnBigText(`${gameCombo} COMBO!`, '#e8a030');
+      screenShake = 4;
+    }
+  }
+  if (hypeLevel >= 3) {
+    // 弾幕量アップ
+    for (let i = 0; i < 2; i++) if (Math.random() < 0.6) spawnDanmaku(hypeLevel);
+    if (Math.random() < 0.3) spawnFirework(Math.random() * rect.width, Math.random() * rect.height * 0.4);
+    if (Math.random() < 0.25) {
+      spawnFlame(Math.random() * rect.width, rect.height);
+      spawnFlame(Math.random() * rect.width, rect.height);
+    }
+    if (gameCombo > 0 && gameCombo % 5 === 0) screenShake = 3;
+  }
+  if (hypeLevel >= 4) {
+    // 弾幕洪水
+    for (let i = 0; i < 3; i++) spawnDanmaku(4);
+    if (Math.random() < 0.2) spawnDancingEmote();
+    if (Math.random() < 0.5) {
+      spawnFlame(Math.random() * rect.width, rect.height);
+      spawnFlame(Math.random() * rect.width, rect.height);
+    }
+    if (Math.random() < 0.3) spawnFirework(Math.random() * rect.width, Math.random() * rect.height * 0.3);
+    if (Math.random() < 0.15) spawnEmoteBurst();
+    screenShake = Math.max(screenShake, 2);
+  }
+}
+
+function renderCrowdEffects() {
+  let crowdCanvas = crowdLayer.querySelector('canvas');
+  if (!crowdCanvas) {
+    crowdCanvas = document.createElement('canvas');
+    crowdCanvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
+    crowdLayer.appendChild(crowdCanvas);
+  }
+  crowdCanvas.width = crowdLayer.clientWidth;
+  crowdCanvas.height = crowdLayer.clientHeight;
+  const cctx = crowdCanvas.getContext('2d');
+  const cW = crowdCanvas.width, cH = crowdCanvas.height;
+  cctx.clearRect(0, 0, cW, cH);
+  const now = performance.now();
+
+  // 画面シェイク
+  if (screenShake > 0) {
+    const sx = (Math.random() - 0.5) * screenShake * 2;
+    const sy = (Math.random() - 0.5) * screenShake * 2;
+    taikoOverlay.style.transform = `translate(${sx}px, ${sy}px)`;
+    screenShake *= 0.9;
+    if (screenShake < 0.3) { screenShake = 0; taikoOverlay.style.transform = ''; }
+  }
+
+  // 高レベル時の背景グロー（より派手）
+  if (hypeLevel >= 2) {
+    const intensity = [0, 0, 0.03, 0.06, 0.12][hypeLevel];
+    const pulse = Math.sin(now * 0.004) * 0.03;
+    cctx.save();
+    cctx.globalAlpha = intensity + pulse;
+    // マルチカラーグロー
+    if (hypeLevel >= 4) {
+      const hue = (now * 0.05) % 360;
+      const glow1 = cctx.createRadialGradient(cW*0.2, cH*0.5, 0, cW*0.2, cH*0.5, cW*0.5);
+      glow1.addColorStop(0, `hsl(${hue},80%,60%)`);
+      glow1.addColorStop(1, 'transparent');
+      cctx.fillStyle = glow1;
+      cctx.fillRect(0, 0, cW, cH);
+      const glow2 = cctx.createRadialGradient(cW*0.8, cH*0.5, 0, cW*0.8, cH*0.5, cW*0.5);
+      glow2.addColorStop(0, `hsl(${(hue+180)%360},80%,60%)`);
+      glow2.addColorStop(1, 'transparent');
+      cctx.fillStyle = glow2;
+      cctx.fillRect(0, 0, cW, cH);
+    } else {
+      const glow = cctx.createRadialGradient(cW/2, cH/2, 0, cW/2, cH/2, cW*0.6);
+      glow.addColorStop(0, HYPE_COLORS[hypeLevel]);
+      glow.addColorStop(1, 'transparent');
+      cctx.fillStyle = glow;
+      cctx.fillRect(0, 0, cW, cH);
+    }
+    cctx.restore();
+  }
+
+  // パーティクル
+  hypeParticles = hypeParticles.filter(p => {
+    p.x += p.vx; p.y += p.vy;
+    p.life -= p.decay;
+    if (p.type === 'firework') {
+      p.vy += 0.08;
+      p.vx *= 0.98;
+      // 軌跡
+      if (p.trail) { p.trail.push({x:p.x, y:p.y}); if (p.trail.length > 6) p.trail.shift(); }
+    }
+    if (p.type === 'flame') { p.vx += (Math.random()-0.5)*0.4; p.size *= 0.96; }
+    if (p.life <= 0) return false;
+
+    cctx.save();
+    cctx.globalAlpha = p.life;
+    if (p.type === 'flame') {
+      const grad = cctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+      grad.addColorStop(0, p.color);
+      grad.addColorStop(0.7, p.color + '80');
+      grad.addColorStop(1, 'transparent');
+      cctx.fillStyle = grad;
+      cctx.beginPath();
+      cctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+      cctx.fill();
+    } else {
+      // 花火軌跡
+      if (p.trail && p.trail.length > 1) {
+        cctx.strokeStyle = p.color;
+        cctx.lineWidth = p.size * 0.5 * p.life;
+        cctx.beginPath();
+        p.trail.forEach((pt, i) => { i === 0 ? cctx.moveTo(pt.x, pt.y) : cctx.lineTo(pt.x, pt.y); });
+        cctx.globalAlpha = p.life * 0.4;
+        cctx.stroke();
+        cctx.globalAlpha = p.life;
+      }
+      cctx.fillStyle = p.color;
+      cctx.shadowColor = p.color;
+      cctx.shadowBlur = 8;
+      cctx.beginPath();
+      cctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2);
+      cctx.fill();
+      cctx.shadowBlur = 0;
+    }
+    cctx.restore();
+    return true;
+  });
+
+  // ニコニコ弾幕コメント描画
+  hypeComments = hypeComments.filter(c => {
+    c.x -= c.speed;
+    if (c.x < -600) return false;
+
+    cctx.save();
+    cctx.font = `${c.bold ? 'bold ' : ''}${c.fontSize}px 'Helvetica Neue', Arial, sans-serif`;
+    cctx.textAlign = 'left';
+    cctx.textBaseline = 'middle';
+
+    if (c.glow) {
+      cctx.shadowColor = c.color;
+      cctx.shadowBlur = 12;
+    }
+    if (c.outline) {
+      cctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      cctx.lineWidth = 3;
+      cctx.strokeText(c.text, c.x, c.y);
+    }
+    cctx.fillStyle = c.color;
+    cctx.fillText(c.text, c.x, c.y);
+    cctx.shadowBlur = 0;
+    cctx.restore();
+    return true;
+  });
+
+  // でかいテキスト演出
+  bigTexts = bigTexts.filter(bt => {
+    bt.life -= bt.decay;
+    bt.scale += (bt.targetScale - bt.scale) * 0.15;
+    if (bt.life <= 0) return false;
+
+    cctx.save();
+    cctx.globalAlpha = Math.min(bt.life * 2, 1);
+    cctx.translate(cW / 2, cH * bt.y);
+    cctx.scale(bt.scale, bt.scale);
+    cctx.font = 'bold 36px sans-serif';
+    cctx.textAlign = 'center';
+    cctx.textBaseline = 'middle';
+    cctx.shadowColor = bt.color;
+    cctx.shadowBlur = 20;
+    cctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    cctx.lineWidth = 4;
+    cctx.strokeText(bt.text, 0, 0);
+    cctx.fillStyle = bt.color;
+    cctx.fillText(bt.text, 0, 0);
+    // 二重グロー
+    cctx.shadowBlur = 40;
+    cctx.globalAlpha *= 0.3;
+    cctx.fillText(bt.text, 0, 0);
+    cctx.restore();
+    return true;
+  });
+
+  // エモート（踊る犬、爆発など）
+  hypeEmotes = hypeEmotes.filter(e => {
+    e.life -= e.decay;
+    if (e.life <= 0) return false;
+
+    cctx.save();
+    cctx.globalAlpha = Math.min(e.life * 1.5, 1);
+
+    if (e.dancing) {
+      e.wobble += 0.1;
+      const dx = e.x + Math.sin(e.wobble) * 25;
+      const dy = e.y + Math.sin(e.wobble * 2.5) * 12;
+      const rot = Math.sin(e.wobble * 1.7) * 0.4;
+      const bounce = 1 + Math.abs(Math.sin(e.wobble * 2)) * 0.15;
+      cctx.translate(dx, dy);
+      cctx.rotate(rot);
+      cctx.scale(bounce, bounce);
+      cctx.font = `${e.size}px sans-serif`;
+      cctx.textAlign = 'center';
+      cctx.fillText(e.text, 0, 0);
+    } else if (e.exploding) {
+      e.x += e.vx;
+      e.y += e.vy;
+      e.vy += 0.05;
+      const rot = e.life * 5;
+      cctx.translate(e.x, e.y);
+      cctx.rotate(rot);
+      cctx.font = `${e.size}px sans-serif`;
+      cctx.textAlign = 'center';
+      cctx.fillText(e.text, 0, 0);
+    } else {
+      e.y += (e.vy || -1.5);
+      e.x += (e.vx || 0);
+      e.wobble = (e.wobble || 0) + 0.05;
+      cctx.translate(e.x + Math.sin(e.wobble) * 10, e.y);
+      cctx.font = `${e.size}px sans-serif`;
+      cctx.textAlign = 'center';
+      cctx.fillText(e.text, 0, 0);
+    }
+    cctx.restore();
+    return true;
+  });
+
+  // Lv4: 常時パーティクルシャワー
+  if (hypeLevel >= 4 && Math.random() < 0.3) {
+    const rect = crowdLayer.getBoundingClientRect();
+    hypeParticles.push({
+      x: Math.random() * rect.width, y: -5,
+      vx: (Math.random()-0.5)*1, vy: 1 + Math.random()*2,
+      life: 1, decay: 0.01,
+      size: 2 + Math.random()*3,
+      color: `hsl(${Math.random()*360},80%,65%)`,
+      type: 'firework', trail: [],
+    });
+  }
+  // Lv3+: 常時弾幕が流れる
+  if (hypeLevel >= 3 && Math.random() < 0.08) spawnDanmaku(hypeLevel);
+  if (hypeLevel >= 4 && Math.random() < 0.12) spawnDanmaku(4);
+}
+
 function startTaikoGame() {
   // リセット
   gameScore = 0; gameCombo = 0; gameMaxCombo = 0;
   gamePerfect = 0; gameGood = 0; gameMiss = 0;
-  gameNotes = generateNotes();
+  hypeLevel = 0; lastHypeLevel = -1;
+  hypeParticles = []; hypeEmotes = [];
+  hypeGauge.style.opacity = '0';
+  const oldCanvas = crowdLayer.querySelector('canvas');
+  if (oldCanvas) oldCanvas.remove();
+  currentSongVariant = songVariants[Math.floor(Math.random() * songVariants.length)];
+  gameNotes = generateNotes(currentSongVariant);
   taikoScoreEl.textContent = '0';
   taikoComboEl.textContent = '0';
   taikoProgressEl.style.width = '0%';
+  document.getElementById('taikoSongName').textContent = '♪ ' + currentSongVariant.name;
 
   resizeTaikoCanvas();
   taikoOverlay.classList.add('active');
@@ -934,7 +1504,7 @@ function startTaikoGame() {
       clearInterval(cdInterval);
       showJudge('GO!', 'perfect');
       gameStartTime = performance.now();
-      playBGM();
+      playBGM(currentSongVariant);
       gameAnimId = requestAnimationFrame(taikoGameLoop);
     }
   }, 700);
@@ -957,7 +1527,9 @@ function taikoGameLoop(now) {
     }
   });
 
+  updateHypeLevel();
   drawTaikoFrame(elapsed);
+  renderCrowdEffects();
 
   if (elapsed < gameDuration + 1000) {
     gameAnimId = requestAnimationFrame(taikoGameLoop);
@@ -997,40 +1569,152 @@ function drawTaikoFrame(elapsed) {
   ctx.fillStyle = '#d0d5dc';
   ctx.fill();
 
-  // ノーツ描画
+  // ノーツ描画（超人太鼓の達人対応）
   gameNotes.forEach(note => {
     if (note.hit || note.missed) return;
     const noteTime = note.time - elapsed;
-    const x = HIT_X + (noteTime / 1000) * NOTE_SPEED;
-    if (x < -50 || x > W + 50) return;
+    const totalTravelTime = (W - HIT_X + 100) / currentNoteSpeed * 1000;
+    const progress = 1 - (noteTime / totalTravelTime); // 0=右端出現 → 1=判定ライン到達
+    let baseX = HIT_X + (noteTime / 1000) * currentNoteSpeed;
 
-    ctx.beginPath();
-    ctx.arc(x, laneY, NOTE_R, 0, Math.PI * 2);
+    // 画面外ならスキップ（外からくる以外）
+    if (note.special !== 'outside' && note.special !== 'bunshin' && (baseX < -80 || baseX > W + 80)) return;
 
-    if (note.type === 'don') {
-      // ドン: 赤系（ニューモフィズムに合わせて落ち着いた赤）
-      ctx.fillStyle = '#c47070';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(x, laneY, NOTE_R - 5, 0, Math.PI * 2);
-      ctx.fillStyle = '#d48888';
-      ctx.fill();
-    } else {
-      // カッ: 青系
-      ctx.fillStyle = '#6088b0';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(x, laneY, NOTE_R - 5, 0, Math.PI * 2);
-      ctx.fillStyle = '#78a0c8';
-      ctx.fill();
+    const sp = note.special;
+    let drawList = []; // [{x, y, r, alpha, rotation}]
+
+    if (sp === 'curve') {
+      // 変化球: sin波で蛇行
+      const yOff = Math.sin(progress * note.curveFreq * Math.PI) * note.curveAmp;
+      drawList.push({ x: baseX, y: laneY + yOff, r: NOTE_R, alpha: 1, rot: 0 });
+    }
+    else if (sp === 'spinoff') {
+      // スピンオフ: 途中で急カーブ
+      let yOff = 0;
+      if (progress > note.spinOffAt) {
+        const spinProgress = (progress - note.spinOffAt) / (1 - note.spinOffAt);
+        // 急に逸れてから判定ラインに戻ってくる
+        yOff = Math.sin(spinProgress * Math.PI) * 70 * note.spinDir;
+        // X座標も少し乱す
+        baseX += Math.sin(spinProgress * Math.PI * 2) * 20;
+      }
+      const rot = progress > note.spinOffAt ? (progress - note.spinOffAt) * 15 : 0;
+      drawList.push({ x: baseX, y: laneY + yOff, r: NOTE_R, alpha: 1, rot });
+    }
+    else if (sp === 'outside') {
+      // 外からくる: 上or下からレーンに合流
+      let x, y;
+      if (progress < 0.6) {
+        // 画面外から斜めに飛来
+        const p = progress / 0.6;
+        x = W - p * (W - HIT_X) * 0.6;
+        const startY = note.fromTop ? -40 : H + 40;
+        y = startY + (laneY - startY) * p;
+      } else {
+        // レーンに合流して直進
+        const p = (progress - 0.6) / 0.4;
+        x = HIT_X + (1 - p) * (W * 0.4);
+        y = laneY;
+      }
+      if (x < -80 || x > W + 80) return;
+      drawList.push({ x, y, r: NOTE_R, alpha: 1, rot: 0 });
+    }
+    else if (sp === 'bunshin') {
+      // 分身: 本物1つ + 偽物3つ
+      if (baseX < -80 || baseX > W + 80) return;
+      // 偽物（半透明でちょっとずれた位置）
+      for (let b = 0; b < note.bunshinCount; b++) {
+        const seed = note.bunshinSeed + b * 137;
+        const bx = baseX + Math.sin(seed + elapsed * 0.003) * 35;
+        const by = laneY + Math.cos(seed * 1.7 + elapsed * 0.004) * 30;
+        drawList.push({ x: bx, y: by, r: NOTE_R, alpha: 0.3, rot: 0, fake: true });
+      }
+      // 本物（少し揺れる）
+      const realY = laneY + Math.sin(elapsed * 0.005 + note.bunshinSeed) * 8;
+      drawList.push({ x: baseX, y: realY, r: NOTE_R, alpha: 1, rot: 0 });
+    }
+    else if (sp === 'shrink') {
+      // 急にサイズが小さくなる
+      if (baseX < -80 || baseX > W + 80) return;
+      let r = NOTE_R;
+      if (progress > note.shrinkAt) {
+        const shrinkP = Math.min((progress - note.shrinkAt) / 0.15, 1);
+        r = NOTE_R * (1 - shrinkP * 0.6); // 最小40%サイズまで
+      }
+      drawList.push({ x: baseX, y: laneY, r, alpha: 1, rot: 0 });
+    }
+    else {
+      // 通常ノーツ
+      if (baseX < -50 || baseX > W + 50) return;
+      drawList.push({ x: baseX, y: laneY, r: NOTE_R, alpha: 1, rot: 0 });
     }
 
-    // ノーツの影（ニューモフィズム風）
-    ctx.beginPath();
-    ctx.arc(x, laneY, NOTE_R, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(0,0,0,0.08)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    // 描画実行
+    drawList.forEach(d => {
+      ctx.save();
+      ctx.globalAlpha = d.alpha;
+      if (d.rot) {
+        ctx.translate(d.x, d.y);
+        ctx.rotate(d.rot);
+        ctx.translate(-d.x, -d.y);
+      }
+
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+      if (note.type === 'don') {
+        ctx.fillStyle = d.fake ? '#d4a0a0' : '#c47070';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r - 5, 0, Math.PI * 2);
+        ctx.fillStyle = d.fake ? '#e0b8b8' : '#d48888';
+        ctx.fill();
+      } else {
+        ctx.fillStyle = d.fake ? '#90a8c0' : '#6088b0';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r - 5, 0, Math.PI * 2);
+        ctx.fillStyle = d.fake ? '#a8c0d8' : '#78a0c8';
+        ctx.fill();
+      }
+
+      // 影
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+      ctx.strokeStyle = d.fake ? 'rgba(0,0,0,0.04)' : 'rgba(0,0,0,0.08)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 超人ノーツにはオーラエフェクト
+      if (sp !== 'normal' && !d.fake) {
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r + 4 + Math.sin(elapsed * 0.01) * 3, 0, Math.PI * 2);
+        ctx.strokeStyle = note.type === 'don' ? 'rgba(196,112,112,0.25)' : 'rgba(96,136,176,0.25)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      ctx.restore();
+    });
+
+    // 超人ノーツの能力名表示（初登場時のみフラッシュ）
+    if (sp !== 'normal' && !note._labelShown && progress > 0 && progress < 0.15) {
+      note._labelShown = true;
+    }
+    if (sp !== 'normal' && progress > 0 && progress < 0.25) {
+      const labelAlpha = Math.max(0, 1 - progress / 0.25);
+      ctx.save();
+      ctx.globalAlpha = labelAlpha;
+      ctx.fillStyle = '#4a5a6e';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      const labelX = drawList[drawList.length - 1]?.x || baseX;
+      const labelY = (drawList[drawList.length - 1]?.y || laneY) - NOTE_R - 10;
+      const labels = { curve:'変化球', spinoff:'スピンオフ', outside:'外から!', bunshin:'分身', shrink:'縮小!' };
+      ctx.fillText(labels[sp] || '', labelX, labelY);
+      ctx.restore();
+    }
   });
 
   // レーンのラベル
@@ -1089,6 +1773,7 @@ function hitNote(type) {
 
   // ヒットエフェクト
   flashHitZone(type);
+  spawnHitCelebration();
 }
 
 function flashHitZone(type) {
