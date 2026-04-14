@@ -6,18 +6,20 @@
   <title>PROFILE SELECTION</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { height: 100%; overflow: hidden; }
+    html { height: 100%; }
     body {
+      min-height: 100%;
       font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
       background: #e0e5ec;
       color: #5a6a7e;
+      overflow-y: auto; overflow-x: hidden;
     }
 
     /* ニューモフィズム */
     .neu       { background: #e0e5ec; border-radius: 14px; box-shadow:  6px 6px 12px #b8bec7, -6px -6px 12px #fff; }
     .neu-inset { background: #e0e5ec; border-radius: 10px; box-shadow: inset 3px 3px 6px #b8bec7, inset -3px -3px 6px #fff; }
 
-    .app { display: flex; height: 100vh; padding: 12px; gap: 12px; }
+    .app { display: flex; min-height: 100vh; padding: 12px; gap: 12px; }
 
     /* ===== 左: プロフィール固定 ===== */
     .profile-col {
@@ -353,10 +355,70 @@
     .result-back-btn:active { box-shadow: inset 4px 4px 8px #b8bec7, inset -4px -4px 8px #fff; }
 
     @media (max-width: 900px) {
-      .app { flex-direction: column; }
-      .profile-col { flex: none; flex-direction: row; flex-wrap: wrap; gap: 16px; padding: 16px; }
-      .preview-row { flex-direction: column; max-height: none; }
-      .ranking-area { flex: none; }
+      body { overflow-y: auto; }
+      .app {
+        flex-direction: column; height: auto; min-height: auto; padding: 10px; gap: 10px;
+      }
+      .profile-col {
+        flex: none; padding: 20px 18px;
+      }
+      .profile-avatar { width: 72px; height: 72px; margin-bottom: 16px; }
+      .profile-name { font-size: 22px; }
+      .main-col { flex: none; min-height: auto; }
+      .preview-row { flex-direction: column; }
+      .jacket-area { flex-direction: column; align-items: center; padding: 12px; }
+      .jacket-frame { width: 100%; max-width: 300px; }
+      .jacket-info h2 { font-size: 14px; }
+      .list-area { flex: none; min-height: auto; }
+      .wheel-container { height: 320px; flex: none; }
+      .start-btn { font-size: 16px; padding: 12px; letter-spacing: 4px; }
+
+      /* 太鼓ゲーム モバイル */
+      .taiko-header { top: 10px; padding: 0 12px; }
+      .taiko-score-box { padding: 6px 12px; font-size: 11px; }
+      .taiko-score-box span { font-size: 20px; }
+      .taiko-combo-box { padding: 6px 12px; font-size: 11px; }
+      .taiko-combo-box span { font-size: 20px; }
+      #taikoSongName { font-size: 12px !important; }
+      .taiko-stage { width: 95%; height: 120px; }
+      .taiko-controls { gap: 8px; }
+
+      /* リザルト モバイル */
+      .result-overlay { padding: 20px; gap: 16px; overflow-y: auto; }
+      .result-title { font-size: 24px; }
+      .result-score-display { padding: 14px 28px; }
+      .result-score-display .score { font-size: 36px; }
+      .result-stats { flex-wrap: wrap; gap: 8px; justify-content: center; }
+      .result-stat { padding: 8px 14px; min-width: 65px; }
+      .result-unlock { max-width: 100%; max-height: 200px; padding: 14px; }
+      .result-unlock-link img { width: 44px; height: 44px; }
+    }
+
+    /* タッチ用太鼓ボタン */
+    .taiko-touch-btns {
+      display: none; gap: 12px; margin-top: 12px; position: relative; z-index: 1;
+    }
+    .taiko-touch-btn {
+      flex: 1; padding: 24px 0; border: none; cursor: pointer;
+      border-radius: 16px; font-size: 24px; font-weight: 900;
+      background: #e0e5ec; color: #4a5a6e;
+      box-shadow: 6px 6px 12px #b8bec7, -6px -6px 12px #fff;
+      transition: box-shadow 0.1s; user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .taiko-touch-btn:active {
+      box-shadow: inset 4px 4px 8px #b8bec7, inset -4px -4px 8px #fff;
+    }
+    .taiko-touch-btn.don { color: #c47070; }
+    .taiko-touch-btn.ka { color: #6088b0; }
+
+    @media (max-width: 900px) {
+      .taiko-touch-btns { display: flex; }
+      .taiko-controls .taiko-key-hint { font-size: 10px; padding: 6px 10px; }
+      .taiko-key-hint .key { font-size: 11px; min-width: 22px; padding: 2px 5px; }
+    }
+    @media (pointer: coarse) {
+      .taiko-touch-btns { display: flex; }
     }
   </style>
 </head>
@@ -448,6 +510,10 @@
   <div class="taiko-controls" style="position:relative;z-index:1;">
     <div class="taiko-key-hint">🔴 ドン<br><span class="key">D</span><span class="key">F</span></div>
     <div class="taiko-key-hint">🔵 カッ<br><span class="key">J</span><span class="key">K</span></div>
+  </div>
+  <div class="taiko-touch-btns" style="position:relative;z-index:1;">
+    <button class="taiko-touch-btn don" id="touchDon">🔴<br>ドン</button>
+    <button class="taiko-touch-btn ka" id="touchKa">🔵<br>カッ</button>
   </div>
 </div>
 
@@ -1492,6 +1558,7 @@ function startTaikoGame() {
 
   resizeTaikoCanvas();
   taikoOverlay.classList.add('active');
+  document.body.style.overflow = 'hidden';
   gameActive = true;
 
   // カウントダウン後にスタート
@@ -1800,6 +1867,7 @@ function endTaikoGame() {
   if (gameAnimId) cancelAnimationFrame(gameAnimId);
   stopBGM();
   taikoOverlay.classList.remove('active');
+  document.body.style.overflow = '';
 
   // スコアに応じて記事を解放（高スコアほど恥ずかしい記事が解放）
   const maxPossible = gameNotes.length * 300 + Math.floor(gameNotes.length / 10) * 500;
@@ -1860,6 +1928,16 @@ document.addEventListener('keydown', (e) => {
   const key = e.key.toLowerCase();
   if (key === 'd' || key === 'f') { e.preventDefault(); hitNote('don'); }
   else if (key === 'j' || key === 'k') { e.preventDefault(); hitNote('ka'); }
+});
+
+// タッチ用ボタン
+['touchstart','mousedown'].forEach(evt => {
+  document.getElementById('touchDon').addEventListener(evt, (e) => {
+    e.preventDefault(); hitNote('don');
+  }, { passive: false });
+  document.getElementById('touchKa').addEventListener(evt, (e) => {
+    e.preventDefault(); hitNote('ka');
+  }, { passive: false });
 });
 
 // リザルト画面の戻るボタン
